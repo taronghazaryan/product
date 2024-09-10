@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Products</title>
+</head>
+<body>
+    <div>
+        <hr>
+        <h2>Add Product</h2>
+        <form id="product_form">
+            <label for="name">Name:</label>
+            <input type="text" name="name" id="name"><br>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea><br>
+            <label for="price">Price:</label>
+            <input id="price" name="price" type="number"><br>
+            <button type="submit">Submit</button>
+        </form>
+        <hr>
+        <h2>Product List</h2>
+        <div id="product_list"></div>
+        <script>
+            const form = document.getElementById('product_form');
+            const productList = document.getElementById('product_list');
+
+            function fetchProducts() {
+                fetch('http://127.0.0.1:8000/api/v1/get/')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch products');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        productList.innerHTML = '';
+
+                        data.forEach(product => {
+                            const productItem = document.createElement('div');
+                            productItem.textContent = `Name: ${product.name}, Description: ${product.description}, Price: ${product.price} $`;
+                            productList.appendChild(productItem);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+
+            fetchProducts();
+
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+
+                fetch('http://127.0.0.1:8000/api/v1/add/', {
+                    method: 'POST',
+                    body: JSON.stringify(Object.fromEntries(formData)),
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Internal Error');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Success:', data);
+                    fetchProducts();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>
