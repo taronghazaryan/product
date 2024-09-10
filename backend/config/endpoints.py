@@ -21,5 +21,5 @@ from django.views.generic import TemplateView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('product.endpoints')),
-    path('product/add/', TemplateView.as_view(template_name='product/add_product.html'))
+    path('', TemplateView.as_view(template_name='product/product.html'))
 ]
