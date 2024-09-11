@@ -1,4 +1,4 @@
-# Product Management API
+# Product Management
 
 ## Overview
 This project is designed to handle adding and presenting products. It is built using Django and Django REST Framework (DRF) for the backend, with Fetch API used for frontend interactions.
