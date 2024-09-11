@@ -9,7 +9,7 @@ from .models import Product
 class ProductApi(APIView):
 
     def get(self, request):
-        products = Product.objects.all()
+        products = Product.objects.all().order_by('-created_at')
         serializer = ProductSerializer(products, many=True)
         if products:
             return Response(serializer.data, status=status.HTTP_200_OK)

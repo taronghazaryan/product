@@ -1,77 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% load static %}
     <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <title>Products</title>
 </head>
 <body>
-    <div>
-        <hr>
-        <h2>Add Product</h2>
-        <form id="product_form">
-            <label for="name">Name:</label>
-            <input type="text" name="name" id="name"><br>
-            <label for="description">Description:</label>
-            <textarea id="description" name="description"></textarea><br>
-            <label for="price">Price:</label>
-            <input id="price" name="price" type="number"><br>
-            <button type="submit">Submit</button>
-        </form>
-        <hr>
-        <h2>Product List</h2>
-        <div id="product_list"></div>
-        <script>
-            const form = document.getElementById('product_form');
-            const productList = document.getElementById('product_list');
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <h2>Product List</h2>
+            <button id="btn-add-product" class="btn btn-primary">Add product</button>
+        </div>
+        <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th class="text-end">Price</th>
+            </tr>
+        </thead>
+        <tbody id="product-list"></tbody>
+        </table>
+    </div>
 
-            function fetchProducts() {
-                fetch('http://127.0.0.1:8000/api/v1/get/')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Failed to fetch products');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        productList.innerHTML = '';
+    <div id="modal" class="modal fade show d-none">
+        <div class="modal-dialog">
+            <form class="modal-content" id="create-form">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create product</h5>
+                    <button type="button" class="btn-close" id="btn-modal-close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" id="name"  placeholder="Insert name...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" id="description" placeholder="Insert description...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price (USD)</label>
+                        <input type="number" class="form-control" name="price" id="price" placeholder="Insert price...">
+                    </div>
+                </div>
+                <p class="text-danger text-center" id="error-message-container"></p>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" id="btn-cancel-product">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="modal-backdrop" class="modal-backdrop fade show d-none"></div>
 
-                        data.forEach(product => {
-                            const productItem = document.createElement('div');
-                            productItem.textContent = `Name: ${product.name}, Description: ${product.description}, Price: ${product.price} $`;
-                            productList.appendChild(productItem);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
+    <script>
+        // Utils
+        const _apiCall = async (url, method = 'GET', data = null) => {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (data && method !== 'GET') {
+                options.body = JSON.stringify(data);
             }
 
-            fetchProducts();
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return await response.json();
+            } catch (error) {
+                throw error;
+            }
+        }
 
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
+        const fetchProducts = async () => {
+            const _buildHTMLProduct = (item) => {
+                return `
+                    <tr>
+                      <th>${item.pk}</th>
+                      <td>${item.name}</td>
+                      <td>${item.description}</td>
+                      <td class="text-end">$${item.price}</td>
+                    </tr>
+                `;
+            };
 
-                fetch('http://127.0.0.1:8000/api/v1/add/', {
-                    method: 'POST',
-                    body: JSON.stringify(Object.fromEntries(formData)),
-                    headers: { 'Content-Type': 'application/json' }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Internal Error');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Success:', data);
-                    fetchProducts();
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+            const _renderProducts = (items) => {
+                const container = document.getElementById('product-list');
+                const HTMLItems = items.map(_buildHTMLProduct);
+                container.innerHTML = HTMLItems.join("");
+            };
+
+            try {
+                const data = await _apiCall('http://127.0.0.1:8000/api/v1/get/');
+                _renderProducts(data);
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const _makeFieldInvalid = (name, errorMsg) => {
+            const field = document.getElementById(name);
+            if (!field || field.classList.contains('is-invalid')) return;
+            field.classList.add('is-invalid');
+            const feedbackElement = document.createElement("div");
+            feedbackElement.classList.add("invalid-feedback");
+            feedbackElement.textContent = errorMsg;
+            field.parentNode.appendChild(feedbackElement)
+        }
+
+        const _resetField = (field) => {
+            if (!field) return;
+            field.value = '';
+            if (!field.classList.contains('is-invalid')) return;
+            field.classList.remove('is-invalid');
+            const feedbackElement = field.parentNode.querySelector('.invalid-feedback');
+            if (!feedbackElement) return;
+            field.parentNode.removeChild(feedbackElement);
+        }
+
+        const _resetForm = (form) => {
+            if (!form) return;
+            Array.from(form.elements).forEach((el) => {
+                if (el.tagName === 'INPUT') {
+                    _resetField(el);
+                }
             });
-        </script>
-    </div>
+        }
+
+        const _validateForm = (form) => {
+            let isValid = true;
+
+            if (!form) return false;
+            if (!form.name) {
+                _makeFieldInvalid('name', "Please enter valid name");
+                isValid = false;
+            }
+            if (!form.description) {
+                _makeFieldInvalid('description', "Please enter valid description");
+                isValid = false;
+            }
+            if (form.price <= 0) {
+                _makeFieldInvalid('price', "The price must be a positive number");
+                isValid = false;
+            }
+            return isValid;
+        }
+
+        const submitForm = async (event) => {
+            event.preventDefault();
+            try {
+                const formData = new FormData(event.target);
+                const body = Object.fromEntries(formData);
+                if (!_validateForm(body)) return;
+                await _apiCall('http://127.0.0.1:8000/api/v1/add/', 'POST', body);
+                await fetchProducts();
+                errorMsgContainer.innerText = '';
+                closeModal(form);
+            } catch (err) {
+                errorMsgContainer.innerText = 'Something went wrong...';
+            }
+        };
+
+        const _getModalElements = () => {
+            const backdrop = document.getElementById("modal-backdrop");
+            const modal = document.getElementById("modal");
+            return { backdrop, modal };
+        }
+
+        const openModal = () => {
+            const { backdrop, modal } = _getModalElements();
+            backdrop.classList.remove("d-none");
+            modal.classList.remove("d-none");
+            modal.style.display = "block";
+        }
+
+        const closeModal = (form) => {
+            const { backdrop, modal } = _getModalElements();
+            backdrop.classList.add("d-none");
+            modal.classList.add("d-none");
+            modal.style.display = "none";
+            _resetForm(form); // If the form has been touched (edited, errored, etc.) we must reset it when closing the modal
+        }
+
+        // HTML Elements
+        const form = document.getElementById('create-form');
+        const errorMsgContainer = document.getElementById('error-message-container');
+        const addProductBtn = document.getElementById('btn-add-product');
+        const cancelBtn = document.getElementById('btn-cancel-product');
+        const closeBtn = document.getElementById('btn-modal-close');
+
+        // Initializing event listeners
+        form.addEventListener('submit', submitForm);
+        addProductBtn.addEventListener('click', openModal);
+        cancelBtn.addEventListener('click', () => closeModal(form));
+        closeBtn.addEventListener('click', () => closeModal(form));
+
+        // Get data
+        fetchProducts();
+    </script>
 </body>
 </html>
